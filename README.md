@@ -1,10 +1,10 @@
-# Pollen Filesystem Component
+# Filesystem Component
 
-[![Latest Version](https://img.shields.io/badge/release-1.0.0-blue?style=for-the-badge)](https://www.presstify.com/pollen-solutions/filesystem/)
+[![Latest Stable Version](https://img.shields.io/packagist/v/pollen-solutions/filesystem.svg?style=for-the-badge)](https://packagist.org/packages/pollen-solutions/filesystem)
 [![MIT Licensed](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)](LICENSE.md)
 [![PHP Supported Versions](https://img.shields.io/badge/PHP->=7.4-8892BF?style=for-the-badge&logo=php)](https://www.php.net/supported-versions.php)
 
-Pollen **Filesystem** Component is an abstraction layer of file storage
+Pollen Solutions **Filesystem** Component is an abstraction layer of file storage
 library [Flysystem](https://flysystem.thephpleague.com/v2/docs/).
 
 ## Installation
