@@ -41,8 +41,7 @@ try {
 
 ## API
 
-The API of the pollen solutions filesystem is identical to that of Flysystem which it inherits. 
-More information
+The API of the pollen solutions filesystem is identical to that of Flysystem which it inherits. More information
 on [Flysystem online official documentation](https://flysystem.thephpleague.com/v2/docs/usage/filesystem-api/).
 
 Storage Manager inherits the Filesystem instance's methods from its default disk and provides other methods to access
@@ -99,22 +98,22 @@ $storage->setDefaultDisk($defaultDisk);
 use Pollen\Filesystem\StorageManagerInterface;
 
 /** @var StorageManagerInterface $storage */
-$storage->registerLocalDisk('my-local-disk', '/my/secured/fallback/directory/absolute_path');
+$storage->registerLocalDisk('my-local-disk', '/my/local/directory/absolute_path');
 ```
 
-### From a custom local filesystem instance
+### With a custom local filesystem instance
 
 ```php
 use Pollen\Filesystem\LocalFilesystem;
 use Pollen\Filesystem\StorageManagerInterface;
 
 /** @var StorageManagerInterface $storage */
-$filesystem = new LocalFilesystem($storage->createLocalAdapter('/my/secured/fallback/directory/absolute_path'));
+$filesystem = new LocalFilesystem($storage->createLocalAdapter('/my/local/directory/absolute_path'));
 
-$storage->addLocalDisk('my-local-disk', $filesystem);
+$storage->addDisk('my-local-disk', $filesystem);
 ```
 
-### From a custom local filesystem instance with custom adapter
+### With a custom local filesystem instance and with custom adapter instance
 
 More information about filesystem architecture
 on [Flysystem online official documentation](https://flysystem.thephpleague.com/v2/docs/architecture/).
@@ -125,10 +124,10 @@ use Pollen\Filesystem\LocalFilesystem;
 use Pollen\Filesystem\StorageManagerInterface;
 
 /** @var StorageManagerInterface $storage */
-$adapter = new LocalFilesystemAdapter('/my/secured/fallback/directory/absolute_path');
+$adapter = new LocalFilesystemAdapter('/my/local/directory/absolute_path');
 $filesystem = new LocalFilesystem($adapter);
 
-$storage->addLocalDisk('my-local-disk', $localDisk);
+$storage->addDisk('my-local-disk', $localDisk);
 ```
 
 ## Extended Local Filesystem API.
@@ -140,7 +139,7 @@ of HTTP request. This allows to extend the API of Flystem with some practical fe
 use Pollen\Filesystem\StorageManagerInterface;
 
 /** @var StorageManagerInterface $storage */
-$disk = $storage->registerLocalDisk('my-local-disk', '/my/secured/fallback/directory/absolute_path');
+$disk = $storage->registerLocalDisk('my-local-disk', '/my/local/directory/absolute_path');
 
 // Returns the HTTP response to download a file.
 $disk->downloadResponse('/sample.txt');
@@ -186,7 +185,7 @@ $filesystem = new LocalImageFilesystem($storage->createLocalAdapter('/my/image/d
 $storage->addLocalDisk('my-image-disk', $filesystem);
 ```
 
-## Local Image Filesystem extended API
+### Local Image Filesystem extended API
 
 ```php
 use Pollen\Filesystem\StorageManagerInterface;
@@ -201,9 +200,49 @@ $disk->HtmlRender('/sample.jpg');
 $disk->getImgSrc('/sample.jpg');
 ```
 
+## S3 Filesystem
+
+```php
+use Pollen\Filesystem\StorageManagerInterface;
+
+/** @var StorageManagerInterface $storage */
+$disk = $storage->registerS3Disk(
+    's3-disk',
+    [
+        'version'     => 'latest',
+        'region'      => 'us-east-2',
+        'endpoint'    => '{{ my-s3-endpoint }}',
+        'credentials' => [
+            'key'    => '{{ my-s3-user }}',
+            'secret' => '{{ my-s3-user-password }}',
+        ]
+    ],
+    'my-aws-s3-bucket-name'
+);
+
+if ($disk = $storage->disk('s3-disk')) {
+    try {
+        $listing = $disk->listContents('/';
+
+        /** @var \League\Flysystem\StorageAttributes $item */
+        foreach ($listing as $item) {
+            $path = $item->path();
+
+            if ($item instanceof FileAttributes) {
+                var_dump($path);
+            } elseif ($item instanceof DirectoryAttributes) {
+                var_dump($path);
+            }
+        }
+    } catch (FilesystemException $e) {
+        var_dump($e->getMessage());
+    }
+}
+```
+
 ## Advanced Usage
 
-### Custom Filesystem and Adapter
+### Uses native or third-party Filesystem and Adapter
 
 Flysystem has a variety of Filesystems and adapters, sometimes provided by third party library.
 
@@ -271,3 +310,66 @@ if ($disk = $storage->disk('ftp-disk')) {
 }
 ```
 
+### Create your own filesystem driver
+
+```php
+use Pollen\Filesystem\StorageManagerInterface;
+use Pollen\Filesystem\FilesystemDriver;
+use League\Flysystem\Ftp\FtpAdapter;
+use League\Flysystem\Ftp\FtpConnectionOptions;
+
+$driver = new class extends FilesystemDriver
+{
+    protected ?string $adapterDefinition = FtpAdapter::class
+
+    /**
+     * @inheritDoc
+     *
+     * {@internal Allows to pass and parse an array of connection options.}
+     */
+    public function parseArgs(...$args) : array{
+        if (!isset($args[0]) || !is_array($args)) {
+            throw new RuntimeException('FTP Filesystem first argument could be an array of connection options.');
+        }
+
+        $config = $args[0];
+        $config['host'] = $config['host']?? '127.0.0.1';
+        $config['root'] = $config['root']?? '/';
+        $config['username'] = $config['username'] ?? 'root';
+        $config['password'] = $config['password'] ?? 'root';
+
+        $_args[] = FtpConnectionOptions::fromArray($config);
+
+        return $_args;
+    }
+};
+
+/** @var StorageManagerInterface $storage */
+$storage->registerDriver('ftp', $driver);
+
+$storage->registerDisk('ftp-disk', 'ftp', [
+    'host'      => 'hostname', // required
+    'root'      => '/root/path/', // required
+    'username'  => 'username', // required
+    'password'  => 'password', // required
+]);
+
+if ($disk = $storage->disk('ftp-disk')) {
+    try {
+        $listing = $disk->listContents('/', true);
+
+        /** @var \League\Flysystem\StorageAttributes $item */
+        foreach ($listing as $item) {
+            $path = $item->path();
+
+            if ($item instanceof \League\Flysystem\FileAttributes) {
+                var_dump($path);
+            } elseif ($item instanceof \League\Flysystem\DirectoryAttributes) {
+                var_dump($path);
+            }
+        }
+    } catch (\League\Flysystem\FilesystemException $e) {
+        var_dump($e->getMessage());
+    }
+}
+```

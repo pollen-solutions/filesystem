@@ -1,13 +1,13 @@
 {
   "name": "pollen-solutions/filesystem",
-    "description": "Pollen Solutions - Filesystem Component - Abstraction layer of file storage library Flysystem",
+    "description": "Pollen Solutions - Filesystem Component - Abstraction layer of file storage library Flysystem.",
   "homepage": "https://www.presstify.com/pollen-solutions/filesystem/",
   "keywords": [
     "pollen-solutions",
     "component",
     "filesystem"
   ],
-  "time": "2021-08-13",
+  "time": "2021-08-25",
   "license": "MIT",
   "authors": [
     {
@@ -36,6 +36,7 @@
     }
   },
   "suggest": {
+    "league/flysystem-aws-s3-v3" : "Interacting with Aws S3 through Flysystem and Pollen Solutions Filesystem component.",
     "pollen-solutions/container" : "Pollen Solutions - Container Component - PSR-11 ready Dependencies Injection Container."
   },
   "minimum-stability": "dev"

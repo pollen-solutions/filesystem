@@ -27,7 +27,15 @@ trait FilesystemHttpAwareTrait
     protected ?string $baseUrl = null;
 
     /**
-     * @inheritDoc
+     * Return the HTTP response of a binary file from its path.
+     *
+     * @param string $path
+     * @param string|null $name
+     * @param array $headers
+     * @param int $expires
+     * @param array $cache
+     *
+     * @return BinaryFileResponseInterface
      */
     public function binaryFileResponse(
         string $path,
@@ -102,7 +110,13 @@ trait FilesystemHttpAwareTrait
     }
 
     /**
-     * @inheritDoc
+     * Returns the HTTP response to download a file from its path.
+     *
+     * @param string $path
+     * @param string|null $name
+     * @param array|null $headers
+     *
+     * @return StreamedResponseInterface
      */
     public function downloadResponse(string $path, ?string $name = null, array $headers = []): StreamedResponseInterface
     {
@@ -110,7 +124,11 @@ trait FilesystemHttpAwareTrait
     }
 
     /**
-     * @inheritDoc
+     * Gets a resource url from its path.
+     *
+     * @param string $path
+     *
+     * @return string|null
      */
     public function getUrl(string $path): ?string
     {
@@ -126,13 +144,20 @@ trait FilesystemHttpAwareTrait
     }
 
     /**
-     * @inheritDoc
+     * Returns the HTTP response of a file from its path.
+     *
+     * @param string $path
+     * @param string|null $name
+     * @param array|null $headers
+     * @param string|null $disposition
+     *
+     * @return StreamedResponseInterface
      */
     public function response(
         string $path,
         ?string $name = null,
         array $headers = [],
-        $disposition = 'inline'
+        ?string $disposition = 'inline'
     ): StreamedResponseInterface {
         try {
             $this->fileExists($path);
@@ -170,7 +195,11 @@ trait FilesystemHttpAwareTrait
     }
 
     /**
-     * @inheritDoc
+     * Sets the url of the root of filesystem.
+     *
+     * @param string $baseUrl
+     *
+     * @return void
      */
     public function setBaseUrl(string $baseUrl): void
     {
