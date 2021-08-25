@@ -2,30 +2,35 @@
 
 declare(strict_types=1);
 
-namespace Pollen\Filesystem;
+namespace Pollen\Filesystem\Drivers;
 
+use League\Flysystem\DirectoryAttributes;
+use League\Flysystem\FileAttributes;
 use League\Flysystem\FilesystemException;
 use League\Flysystem\PathNormalizer;
 use League\Flysystem\StorageAttributes;
+use Pollen\Filesystem\AbstractFilesystem;
+use Pollen\Filesystem\FilesystemAdapterInterface;
+use Pollen\Filesystem\FilesystemHttpAwareTrait;
 use SplFileInfo;
 
-class LocalFilesystem extends AbstractFilesystem implements LocalFilesystemInterface
+class LocalFilesystem extends AbstractFilesystem
 {
     use FilesystemHttpAwareTrait;
 
     /**
      * Related Local Filesystem adapter instance.
-     * @var LocalFilesystemAdapterInterface
+     * @var LocalFilesystemAdapter
      */
     protected FilesystemAdapterInterface $adapter;
 
     /**
-     * @param LocalFilesystemAdapterInterface $adapter
+     * @param LocalFilesystemAdapter $adapter
      * @param array $config
      * @param PathNormalizer|null $pathNormalizer
      */
     public function __construct(
-        LocalFilesystemAdapterInterface $adapter,
+        LocalFilesystemAdapter $adapter,
         array $config = [],
         PathNormalizer $pathNormalizer = null
     ) {
@@ -33,7 +38,11 @@ class LocalFilesystem extends AbstractFilesystem implements LocalFilesystemInter
     }
 
     /**
-     * @inheritDoc
+     * Gets a file contents from its path.
+     *
+     * @param string $path
+     *
+     * @return string|null
      */
     public function __invoke(string $path): ?string
     {
@@ -48,7 +57,11 @@ class LocalFilesystem extends AbstractFilesystem implements LocalFilesystemInter
     }
 
     /**
-     * @inheritDoc
+     * Gets the absolute path of a resource from its path.
+     *
+     * @param string $path
+     *
+     * @return string
      */
     public function getAbsolutePath(string $path = '/'): string
     {
@@ -56,7 +69,11 @@ class LocalFilesystem extends AbstractFilesystem implements LocalFilesystemInter
     }
 
     /**
-     * @inheritDoc
+     * Gets the SplFileInfo instance of a resource from its path.
+     *
+     * @param string $path
+     *
+     * @return SplFileInfo
      */
     public function getSplFileInfo(string $path = '/'): SplFileInfo
     {
@@ -64,7 +81,11 @@ class LocalFilesystem extends AbstractFilesystem implements LocalFilesystemInter
     }
 
     /**
-     * @inheritDoc
+     * Gets the storage file attributes of a resource form its path.
+     *
+     * @param string $path
+     *
+     * @return StorageAttributes|DirectoryAttributes|FileAttributes
      */
     public function getStorageAttributes(string $path = '/'): StorageAttributes
     {

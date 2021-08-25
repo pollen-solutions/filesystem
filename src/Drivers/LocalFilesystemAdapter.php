@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Pollen\Filesystem;
+namespace Pollen\Filesystem\Drivers;
 
 use League\Flysystem\DirectoryAttributes;
 use League\Flysystem\FileAttributes;
@@ -14,9 +14,10 @@ use League\Flysystem\UnixVisibility\PortableVisibilityConverter;
 use League\Flysystem\UnixVisibility\VisibilityConverter;
 use League\MimeTypeDetection\FinfoMimeTypeDetector;
 use League\MimeTypeDetection\MimeTypeDetector;
+use Pollen\Filesystem\AbstractFilesystemAdapter;
 use SplFileInfo;
 
-class LocalFilesystemAdapter extends AbstractFilesystemAdapter implements LocalFilesystemAdapterInterface
+class LocalFilesystemAdapter extends AbstractFilesystemAdapter
 {
     /**
      * @var int
@@ -83,7 +84,11 @@ class LocalFilesystemAdapter extends AbstractFilesystemAdapter implements LocalF
     }
 
     /**
-     * @inheritDoc
+     * Gets the absolute path of a resource from its path.
+     *
+     * @param string $path
+     *
+     * @return string
      */
     public function getAbsolutePath(string $path = '/'): string
     {
@@ -91,7 +96,11 @@ class LocalFilesystemAdapter extends AbstractFilesystemAdapter implements LocalF
     }
 
     /**
-     * @inheritDoc
+     * Gets the SplFileInfo instance of a resource from its path.
+     *
+     * @param string $path
+     *
+     * @return SplFileInfo
      */
     public function getSplFileInfo(string $path = '/'): SplFileInfo
     {
