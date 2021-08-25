@@ -4,9 +4,17 @@ declare(strict_types=1);
 
 namespace Pollen\Filesystem;
 
+use League\Flysystem\FilesystemOperator;
 use League\Flysystem\Local\LocalFilesystemAdapter as BaseLocalFilesystemAdapter;
 use League\Flysystem\UnixVisibility\PortableVisibilityConverter;
 use League\Flysystem\UnixVisibility\VisibilityConverter;
+use Pollen\Filesystem\Drivers\LocalDriver;
+use Pollen\Filesystem\Drivers\LocalFilesystem;
+use Pollen\Filesystem\Drivers\LocalFilesystemAdapter;
+use Pollen\Filesystem\Drivers\LocalImageDriver;
+use Pollen\Filesystem\Drivers\LocalImageFilesystem;
+use Pollen\Filesystem\Drivers\S3Driver;
+use Pollen\Support\Concerns\BootableTrait;
 use Pollen\Support\Concerns\ConfigBagAwareTrait;
 use Pollen\Support\Exception\ManagerRuntimeException;
 use Pollen\Support\Proxy\ContainerProxy;
@@ -18,6 +26,7 @@ use RuntimeException;
  */
 class StorageManager implements StorageManagerInterface
 {
+    use BootableTrait;
     use ConfigBagAwareTrait;
     use ContainerProxy;
 
@@ -32,6 +41,12 @@ class StorageManager implements StorageManagerInterface
      * @var array<string, FilesystemInterface>|array
      */
     private array $disks = [];
+
+    /**
+     * List of registered filesystem driver instances.
+     * @var array<string, FilesystemDriver|callable>|array
+     */
+    private array $drivers = [];
 
     /**
      * Default filesystem instance.
@@ -56,6 +71,8 @@ class StorageManager implements StorageManagerInterface
         if (!self::$instance instanceof static) {
             self::$instance = $this;
         }
+
+        $this->boot();
     }
 
     /**
@@ -69,6 +86,23 @@ class StorageManager implements StorageManagerInterface
     public function __call($method, $arguments)
     {
         return $this->getDefaultDisk()->$method(...$arguments);
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function boot(): StorageManagerInterface
+    {
+        if (!$this->isBooted()) {
+            $this->drivers = [
+                'local'       => new LocalDriver(null, $this),
+                'local-image' => new LocalImageDriver(null, $this),
+                's3'          => new S3Driver(null, $this),
+            ];
+
+            $this->setBooted();
+        }
+        return $this;
     }
 
     /**
@@ -97,19 +131,11 @@ class StorageManager implements StorageManagerInterface
     /**
      * @inheritDoc
      */
-    public function addLocalDisk(string $name, LocalFilesystemInterface $disk): StorageManagerInterface
-    {
-        return $this->addDisk($name, $disk);
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public function createLocalAdapter(string $root, array $config = []): LocalFilesystemAdapterInterface
+    public function createLocalAdapter(string $root, array $config = []): LocalFilesystemAdapter
     {
         $visibility = $config['visibility'] ?? null;
         if (!$visibility instanceof VisibilityConverter) {
-            $visibility = is_array($visibility)? PortableVisibilityConverter::fromArray($visibility) : null;
+            $visibility = is_array($visibility) ? PortableVisibilityConverter::fromArray($visibility) : null;
         }
 
         $writeFlags = (int)($config['write_flags'] ?? LOCK_EX);
@@ -123,7 +149,7 @@ class StorageManager implements StorageManagerInterface
     /**
      * @inheritDoc
      */
-    public function createLocalFilesystem(string $root, array $config = []): LocalFilesystemInterface
+    public function createLocalFilesystem(string $root, array $config = []): LocalFilesystem
     {
         $adapter = $this->createLocalAdapter($root, $config);
 
@@ -157,9 +183,9 @@ class StorageManager implements StorageManagerInterface
     /**
      * @inheritDoc
      */
-    public function localDisk(?string $name = null): ?LocalFilesystemInterface
+    public function localDisk(?string $name = null): ?LocalFilesystem
     {
-        if (($disk = $this->disk($name)) && $disk instanceof LocalFilesystemInterface) {
+        if (($disk = $this->disk($name)) && $disk instanceof LocalFilesystem) {
             return $disk;
         }
         return null;
@@ -168,9 +194,9 @@ class StorageManager implements StorageManagerInterface
     /**
      * @inheritDoc
      */
-    public function localImageDisk(?string $name = null): ?LocalImageFilesystemInterface
+    public function localImageDisk(?string $name = null): ?LocalImageFilesystem
     {
-        if (($disk = $this->disk($name)) && $disk instanceof LocalImageFilesystemInterface) {
+        if (($disk = $this->disk($name)) && $disk instanceof LocalImageFilesystem) {
             return $disk;
         }
         return null;
@@ -179,34 +205,80 @@ class StorageManager implements StorageManagerInterface
     /**
      * @inheritDoc
      */
-    public function registerLocalDisk(string $name, string $root, array $config = []): LocalFilesystemInterface
+    public function registerDisk(string $diskName, string $driverName, ...$adapterArgs): FilesystemOperator
     {
-        $disk = $this->createLocalFilesystem($root, $config);
+        $driver = $this->drivers[$driverName];
 
-        $this->addLocalDisk($name, $disk);
+        $disk = $driver(...$adapterArgs);
 
-        $exists = $this->disk($name);
-        if ($exists instanceof LocalFilesystemInterface) {
-            return $exists;
-        }
-        throw new RuntimeException(sprintf('StorageManager unable to register local disk [%s]', $name));
+        $this->addDisk($diskName, $disk);
+
+        return $disk;
     }
 
     /**
      * @inheritDoc
      */
-    public function registerLocalImageDisk(string $name, string $root, array $config = []): LocalImageFilesystemInterface
+    public function registerDriver(string $name, FilesystemDriverInterface $driver): StorageManagerInterface
     {
-        $adapter = $this->createLocalAdapter($root, $config);
-        $disk = new LocalImageFilesystem($adapter);
+        $this->drivers[$name] = $driver;
 
-        $this->addLocalDisk($name, $disk);
+        return $this;
+    }
 
-        $exists = $this->disk($name);
-        if ($exists instanceof LocalImageFilesystemInterface) {
-            return $exists;
+    /**
+     * @inheritDoc
+     */
+    public function registerLocalDisk(string $name, string $root, ?array $config = null): LocalFilesystem
+    {
+        $driver = $this->drivers['local'];
+
+        $disk = $driver($root, $config);
+
+        $this->addDisk($name, $disk);
+
+        if ($disk instanceof LocalFilesystem) {
+            return $disk;
         }
-        throw new RuntimeException(sprintf('StorageManager unable to register local image disk [%s]', $name));
+        throw new RuntimeException(sprintf('StorageManager unable to register local disk [%s].', $name));
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function registerLocalImageDisk(
+        string $name,
+        string $root,
+        ?array $config = null
+    ): LocalImageFilesystem {
+        $driver = $this->drivers['local-image'];
+
+        $disk = $driver($root, $config);
+
+        $this->addDisk($name, $disk);
+
+        if ($disk instanceof LocalImageFilesystem) {
+            return $disk;
+        }
+        throw new RuntimeException(sprintf('StorageManager unable to register local image disk [%s].', $name));
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function registerS3Disk(
+        string $name,
+        array $client,
+        string $bucket,
+        ?array $config = null
+    ): FilesystemInterface {
+        $driver = $this->drivers['s3'];
+
+        $disk = $driver($client, array_merge(is_array($config) ? $config : [], compact('bucket')));
+
+        $this->addDisk($name, $disk);
+
+        return $disk;
     }
 
     /**
