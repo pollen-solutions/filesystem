@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Pollen\Filesystem;
+namespace Pollen\Filesystem\Drivers;
 
 use Exception;
 use League\Flysystem\FilesystemException;
@@ -10,7 +10,7 @@ use League\MimeTypeDetection\ExtensionMimeTypeDetector;
 use Pollen\Support\Html;
 use RuntimeException;
 
-class LocalImageFilesystem extends LocalFilesystem implements LocalImageFilesystemInterface
+class LocalImageFilesystem extends LocalFilesystem
 {
     /**
      * @inheritDoc
@@ -21,7 +21,12 @@ class LocalImageFilesystem extends LocalFilesystem implements LocalImageFilesyst
     }
 
     /**
-     * @inheritDoc
+     * Gets the HTML render of an image file from its path.
+     *
+     * @param string $path
+     * @param array|null $attrs List of HTML tag attributes.
+     *
+     * @return string
      */
     public function htmlRender(string $path, ?array $attrs = null): ?string
     {
@@ -66,7 +71,12 @@ class LocalImageFilesystem extends LocalFilesystem implements LocalImageFilesyst
     }
 
     /**
-     * @inheritDoc
+     * Gets the image file url from its path.
+     *
+     * @param string $path
+     * @param bool $forceBase64
+     *
+     * @return string
      */
     public function getImgSrc(string $path, bool $forceBase64 = false): string
     {
@@ -76,6 +86,7 @@ class LocalImageFilesystem extends LocalFilesystem implements LocalImageFilesyst
                     sprintf('File located in [%s] does not exists.', $path)
                 );
             }
+
             $content = $this->read($path);
             $filename = $this->adapter->getAbsolutePath($path);
             $mimeType = (new ExtensionMimeTypeDetector())->detectMimeTypeFromPath($filename);
